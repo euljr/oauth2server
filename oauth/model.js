@@ -20,8 +20,8 @@ module.exports = {
                     return false;
                 return {
                     accessToken: token.attributes.access_token,
-                    accessTokenExpiresAt: [new Date(token.attributes.expires)],
-                    scope: [token.attributes.scope], // to-do
+                    accessTokenExpiresAt: new Date(token.attributes.expires),
+                    scope: token.attributes.scope, // to-do
                     client: token.relations.client,
                     user: token.relations.user
                 }
@@ -35,7 +35,7 @@ module.exports = {
             .then(token => {
                 return {
                     refreshToken: token.attributes.refresh_token,
-                    refreshTokenExpiresAt: token.attributes.expires,
+                    refreshTokenExpiresAt: new Date(token.attributes.expires),
                     scope: token.attributes.scope,
                     client: token.relations.client,
                     user: token.relations.user
@@ -53,10 +53,10 @@ module.exports = {
                 return {
                     code: authorization_code,
                     client: authCode.relations.client,
-                    expiresAt: authCode.attributes.expires,
-                    redirectUri: [authCode.relations.client.redirect_uri],
+                    expiresAt: new Date(authCode.attributes.expires),
+                    redirectUri: authCode.relations.client.redirect_uri,
                     user: authCode.relations.user,
-                    scope: [authCode.attributes.scope]
+                    scope: authCode.attributes.scope
                 };
             });
     },
@@ -73,7 +73,7 @@ module.exports = {
                 return {
                     id: client.attributes.id,
                     redirectUris: [client.attributes.redirect_uri],
-                    grants: [] // to-do
+                    grants: ['password'] // to-do
                 }
             });
     },
@@ -111,16 +111,11 @@ module.exports = {
             }));
         }
         return Promise.all(toAdd.map(item => item.save()))
-            // .then(array => array.map((item, index) => {
-            //     if (index === 0)
-            //         return Object.assign({}, item, { accessTokenExpiresAt: item.expires });
-            //     return Object.assign({}, item, { refreshTokenExpiresAt: item.expires });
-            // }).reduce((p, n) => Object.assign({}, p, n), {}))
             .then(([at, et]) => ({
                 accessToken: at.attributes.access_token,
-                accessTokenExpiresAt: at.attributes.expires,
+                accessTokenExpiresAt: new Date(at.attributes.expires),
                 refreshToken: et.attributes.refresh_token,
-                refreshTokenExpiresAt: et.attributes.expires,
+                refreshTokenExpiresAt: new Date(et.attributes.expires),
                 scope: [],//to-do
                 client: at.attributes.client_id,
                 user
