@@ -46,7 +46,9 @@ function create_oauth_scopes(table) {
 function create_users(table) {
     table.increments('id').primary();
     table.string('username', 32).notNullable();
-    table.string('password', 32).notNullable();
+    table.string('password', 60).notNullable();
+    table.string('email', 255).notNullable();
+    table.string('fullname', 255).notNullable();
     table.string('scope', 255).nullable();
 }
 

@@ -2,21 +2,22 @@
 const OAuth2Server = require('oauth2-server');
 const Request = OAuth2Server.Request;
 const Response = OAuth2Server.Response;
+
 const {
-    User,
-    OAuthAccessToken,
-    OAuthClient,
-    OAuthAuthorizationCode,
-    OAuthRefreshToken,
-    OAuthScope
-} = require('./repository');
+    OAuthClientModel
+} = require('../model/OAuth');
 
 const oauth = new OAuth2Server({
     debug: true,
     model: require('./model')
 });
 
+const extendedGrantTypes = {
+    email: require('./email_grant')
+};
+
 module.exports = {
+    oauth,
     authorize: (options) => {
         var options = options || {};
         return function (req, res, next) {
@@ -29,56 +30,25 @@ module.exports = {
             var response = new Response(res);
 
             oauth.authenticate(request, response, options)
-                .then(function (token) {
-                    // Request is authorized.
-                    req.user = token
-                    next()
+                .then(token => {
+                    req.user = token;
+                    next();
                 })
-                .catch(function (err) {
-                    // Request is not authorized.
-                    res.status(err.code || 500).json(err)
-                });
+                .catch(err => next(err));
         }
     },
     configure: function (app) {
         app.all('/oauth/token', function (req, res, next) {
             var request = new Request(req);
             var response = new Response(res);
-
             oauth
-                .token(request, response)
-                .then(function (token) {
-                    // Todo: remove unnecessary values in response
-                    return res.json(token)
-                }).catch(function (err) {
-                    return res.status(500).json(err)
-                })
+                .token(request, response, {extendedGrantTypes})
+                .then(data => res.json({
+                    success: true,
+                    data
+                }))
+                .catch(next);
         });
-
-        app.post('/authorize', function (req, res) {
-            var request = new Request(req);
-            var response = new Response(res);
-
-            return oauth.authorize(request, response).then(function (success) {
-                res.json(success)
-            }).catch(function (err) {
-                res.status(err.code || 500).json(err)
-            })
-        });
-
-        app.get('/authorize', function (req, res) {
-            return OAuthClient
-                .where({
-                    client_id: req.query.client_id,
-                    redirect_uri: req.query.redirect_uri,
-                })
-                .fetch()
-                .then(function (model) {
-                    if (!model) return res.status(404).json({ error: 'Invalid Client' });
-                    return res.json(model);
-                }).catch(function (err) {
-                    return res.status(err.code || 500).json(err)
-                });
-        });
+        // TO-DO: EP's de authorization (API's para serviços externos, caso necessário)
     }
 }

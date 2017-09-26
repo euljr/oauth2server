@@ -1,19 +1,30 @@
 {
-  "name": "testeoauth",
+  "name": "teste",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "watch": "nodemon index.js"
+    "watch": "nodemon index.js",
+    "migrations": "knex migrate:latest",
+    "rollback": "knex migrate:rollback"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:euljr/oauth2server.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bcrypt": "^1.0.3",
     "body-parser": "^1.18.1",
     "bookshelf": "^0.10.4",
+    "bookshelf-mask": "^2.0.1",
     "dotenv": "^4.0.0",
     "express": "^4.15.4",
+    "express-validation": "^1.0.2",
+    "joi": "^11.1.0",
+    "jwt-simple": "^0.5.1",
     "knex": "^0.13.0",
     "mysql": "^2.14.1",
     "oauth2-server": "^3.0.0"

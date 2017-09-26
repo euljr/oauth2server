@@ -1,18 +1,20 @@
 const {
-    User,
-    OAuthAccessToken,
-    OAuthClient,
-    OAuthAuthorizationCode,
-    OAuthRefreshToken,
-    OAuthScope
-} = require('./repository');
+    OAuthAccessTokenModel,
+    OAuthClientModel,
+    OAuthAuthorizationCodeModel,
+    OAuthRefreshTokenModel,
+    OAuthScopeModel
+} = require('../model/OAuth');
+const bcrypt = require('bcrypt');
+
+const { UserModel } = require('../model/User');
 
 module.exports = {
     // generateAccessToken: (client, user, scope) => { },
     // generateRefreshToken: (client, user, scope) => { },
     // generateAuthorizationCode: (client, user, scope) => { },
     getAccessToken: access_token => {
-        return OAuthAccessToken
+        return OAuthAccessTokenModel
             .where({ access_token })
             .fetch({ withRelated: ['client', 'user'] })
             .then(token => {
@@ -22,14 +24,14 @@ module.exports = {
                     accessToken: token.attributes.access_token,
                     accessTokenExpiresAt: new Date(token.attributes.expires),
                     scope: token.attributes.scope, // to-do
-                    client: token.relations.client,
-                    user: token.relations.user
+                    client: token.relations.client.toJSON(),
+                    user: token.relations.user.toJSON()
                 }
             });
     },
     getRefreshToken: refreshToken => {
-        return OAuthRefreshToken
-            .where({refresh_token: refreshToken})
+        return OAuthRefreshTokenModel
+            .where({ refresh_token: refreshToken })
             .fetch({ withRelated: ['client', 'user'] })
             .fetch()
             .then(token => {
@@ -37,13 +39,13 @@ module.exports = {
                     refreshToken: token.attributes.refresh_token,
                     refreshTokenExpiresAt: new Date(token.attributes.expires),
                     scope: token.attributes.scope,
-                    client: token.relations.client,
-                    user: token.relations.user
+                    client: token.relations.client.toJSON(),
+                    user: token.relations.user.toJSON()
                 }
             });
     },
     getAuthorizationCode: authorization_code => {
-        return OAuthAuthorizationCode
+        return OAuthAuthorizationCodeModel
             .where({ authorization_code })
             .fetch({ withRelated: ['client', 'user'] })
             .fetch()
@@ -52,11 +54,11 @@ module.exports = {
                     return false;
                 return {
                     code: authorization_code,
-                    client: authCode.relations.client,
+                    client: authCode.relations.client.toJSON(),
                     expiresAt: new Date(authCode.attributes.expires),
-                    redirectUri: authCode.relations.client.redirect_uri,
-                    user: authCode.relations.user,
-                    scope: authCode.attributes.scope
+                    redirectUri: authCode.relations.client.toJSON().redirect_uri,
+                    user: authCode.relations.user.toJSON(),
+                    scope: authCode.attributes.scope.toJSON()
                 };
             });
     },
@@ -64,7 +66,7 @@ module.exports = {
         let where = { client_id };
         if (client_secret)
             where.client_secret = client_secret;
-        return OAuthClient
+        return OAuthClientModel
             .where(where)
             .fetch()
             .then(client => {
@@ -73,28 +75,40 @@ module.exports = {
                 return {
                     id: client.attributes.id,
                     redirectUris: [client.attributes.redirect_uri],
-                    grants: ['password'] // to-do
+                    grants: ['password', 'email']
                 }
             });
     },
     getUser: (username, password) => {
-        return User
-            .where({ username, password })
+        return UserModel
+            .where({ username })
             .fetch()
-            .then(user => user.attributes);
+            .then(user => user ?
+                bcrypt.compare(password, user.attributes.password)
+                    .then(res => res ? user.attributes : false) : false
+            );
+    },
+    getUserByEmail: (email, password) => {
+        return UserModel
+            .where({ email })
+            .fetch()
+            .then(user => user ?
+                bcrypt.compare(password, user.attributes.password)
+                    .then(res => res ? user.attributes : false) : false
+            );
     },
     getUserFromClient: ({ client_id }) => {
-        return OAuthClient
+        return OAuthClientModel
             .where({ client_id })
             .fetch({ withRelated: ['user'] })
             .then(client => {
                 if (!client || !client.relations.user)
                     return false;
-                return client.relations.user;
+                return client.relations.user.toJSON();
             });
     },
     saveToken: (token, client, user) => {
-        let toAdd = [new OAuthAccessToken({
+        let toAdd = [new OAuthAccessTokenModel({
             access_token: token.accessToken,
             expires: token.accessTokenExpiresAt,
             client_id: client.id,
@@ -102,7 +116,7 @@ module.exports = {
             scope: token.scope
         })];
         if (token.refreshToken) {
-            toAdd.push(new OAuthRefreshToken({
+            toAdd.push(new OAuthRefreshTokenModel({
                 refresh_token: token.refreshToken,
                 expires: token.refreshTokenExpiresAt,
                 client_id: client.id,
@@ -122,7 +136,7 @@ module.exports = {
             }));
     },
     saveAuthorizationCode: (code, client, user) => {
-        return new OAuthAuthorizationCode({
+        return new OAuthAuthorizationCodeModel({
             expires: code.expiresAt,
             client_id: client.id,
             authorization_code: code.authorizationCode,
@@ -133,14 +147,14 @@ module.exports = {
         }));
     },
     revokeToken: ({ refreshToken }) => {
-        return OAuthRefreshToken
+        return OAuthRefreshTokenModel
             .where({ refresh_token: refreshToken })
             .destroy()
             .then(() => true)
             .catch(() => false);
     },
     revokeAuthorizationCode: ({ authorizationCode }) => {
-        return OAuthAuthorizationCode
+        return OAuthAuthorizationCodeModel
             .where({ authorization_code: authorizationCode })
             .destroy()
             .then(() => true)
